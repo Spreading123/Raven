@@ -1,4 +1,4 @@
-# Desktop Agent —— 架构规划方案
+# Raven —— 架构规划方案
 
 > 目标：面向**大型商用场景**的**通用型 Agent 智能体**。
 > 原则：**分层清晰、职责单一、模块化、可扩展、可测试**，同时保持简洁优雅、避免过度工程。
@@ -16,7 +16,7 @@
 ### 1.1 当前结构
 
 ```
-desktop_agent/
+raven/
 ├── main.py              # 入口（健康，保持精简）
 ├── config/settings.py   # 配置（.env）
 ├── app/
@@ -62,7 +62,7 @@ desktop_agent/
 ### 2.1 总览（DSH 融合）
 
 ```
-desktop_agent/
+raven/
 ├── main.py                        # 入口：组装 App + 装配 DSH 插件 profile
 │
 ├── micro_kernel/                  # 🆕 DSH 微内核（仿 Cordis，零业务逻辑）

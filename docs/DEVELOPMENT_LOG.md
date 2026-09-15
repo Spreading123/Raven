@@ -1,6 +1,6 @@
 # 开发日志（DEVELOPMENT LOG）
 
-> 记录 **Desktop Agent** 从原型到 DSH 架构演进的完整开发过程。
+> 记录 **Raven**（原 Desktop Agent）从原型到 DSH 架构演进的完整开发过程。
 > 每个阶段按「目标 → 实现 → 关键决策 → 踩坑与解决 → 验证」记录。
 > 配套文档：架构规划见 [`ARCHITECTURE.md`](ARCHITECTURE.md)，项目说明见 [`../README.md`](../README.md)。
 
