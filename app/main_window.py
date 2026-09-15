@@ -41,11 +41,11 @@ from ui.themes import THEME_LABELS, THEMES
 
 logger = get_logger(__name__)
 
-# 附件上传的产品级约束
-_MAX_ATTACHMENTS = 20          # 单次最多附加的文件数，防止一次拖入海量文件撑爆 UI/上下文
-_MAX_TEXT_BYTES = 200_000      # 单个文本文件最多读取的字节数，超过则拒绝（避免超大内容塞爆 token / 内存）
-_MAX_IMAGE_BYTES = 10_000_000  # 单个图片文件最多字节数，超过则拒绝（避免超大 base64 塞爆请求 / 内存）
-_ATTACH_BAR_MAX_HEIGHT = 96    # 附件容器最大高度：约 3 行 chip，超出出现滚动条，避免挤压输入框
+# 附件上传的软限制
+_MAX_ATTACHMENTS = 20          # 最多附件数
+_MAX_TEXT_BYTES = 200_000      # 单个文本文件大小上限（字节）
+_MAX_IMAGE_BYTES = 10_000_000  # 单个图片文件大小上限（字节）
+_ATTACH_BAR_MAX_HEIGHT = 96    # 附件容器最大高度
 
 # 图片扩展名 -> MIME 类型（用于构造 data URL 多模态内容块）
 _IMAGE_MIME = {
@@ -355,25 +355,18 @@ class MainWindow(QWidget):
 
         self.agent = DSHBridge(self)
         self._worker: _AgentWorker | None = None
-        # 待上传附件列表：每个元素
-        #   {"name": 文件名, "content": 文本内容, "kind": "text"/"image", "path": 路径}
-        #   （图片额外含 "data_url": 图片 base64 的 data URL，发送时以 image_url 内容块提交）；
-        # 输入区以紧凑 chip 形式并列显示，发送时逐个并入消息提交给大模型（支持多文件）
+        # 待上传附件及其对应的 UI chip
         self._pending_attachments: list[dict[str, str]] = []
-        # 与附件一一对应的 UI chip：元素为 (附件 dict, chip QFrame, 文件名 QLabel, 移除按钮 QPushButton)，
-        # 用于按索引移除以及主题切换时刷新 chip 配色
         self._attach_chips: list[tuple[dict, object, object, object]] = []
         self._drag_pos = None
         self._resize_dir = self._EDGE_NONE
         self._resize_start_geo = None
-        # 流式渲染状态由 ChatView/AssistantBubble 管理
-        # 会话管理：_sessions 保存每个会话的消息（角色, 文本），
-        # _session_titles 保存会话标题（取首条用户消息），_current_idx 指向当前会话。
+        # 会话数据：消息、标题、id、当前索引
         self._sessions: list[list[tuple[str, str]]] = []
         self._session_titles: list[str] = []
         self._session_ids: list[str] = []
         self._current_idx: int | None = None
-        # 流式期间累积的完整助手文本（结束时写入会话）
+        # 流式期间累积的助手文本
         self._stream_text: str = ""
 
         self.list_nav.setCurrentRow(0)  # 默认选中第一项"对话任务"
@@ -399,8 +392,7 @@ class MainWindow(QWidget):
         self.agent.message_chunk.connect(self.add_agent_chunk)
         self.agent.tool_called.connect(self.add_tool_message)
         self.agent.error.connect(self._on_error)
-        # 注意：不连接 agent.finished，避免与 worker.finished 重复触发 _on_agent_finished
-        # （DSHBridge.process 的 finally 会 emit finished，而 QThread.run() 返回后也会 emit finished）
+        # 不连接 agent.finished，避免与 worker.finished 重复触发
         # 初始显示欢迎界面
         self.chat_view.show_welcome()
 
@@ -660,16 +652,11 @@ class MainWindow(QWidget):
         self._apply_current_provider()
 
     def _on_save_key(self) -> None:
-        """点击保存：持久化 API Key 到历史 + 立即应用（重建客户端，刷新缓存）
-        + 短暂显示“已保存 ✓”，几秒后自动恢复为“保存”，方便再次编辑/保存。"""
+        """保存 API Key 并立即生效。"""
         name = self._current_provider()
         key = self.edit_api_key.text().strip()
-        # 1) 保存到历史（providers.json）
         save_api_key(name, key)
-        # 2) 立即应用并刷新缓存：config 更新 + 丢弃已缓存客户端，
-        #    确保下次请求用最新 Key（key 变化时 set_provider 会重建客户端）
         self._apply_current_provider()
-        # 3) 反馈“已保存 ✓”，约 3 秒后恢复为“保存”
         self._mark_key_saved(True)
         QTimer.singleShot(3000, lambda: self._mark_key_saved(False))
 
@@ -682,13 +669,7 @@ class MainWindow(QWidget):
             w.style().polish(w)
 
     def _on_upload_file(self) -> None:
-        """选择并附加一个或多个文件（文本或图片）。
-
-        仅允许文本类与图片类文件，其余类型直接拒绝并跳过；
-        文本文件读取后暂存（超限拒绝），图片文件仅保留路径；
-        输入区以紧凑 chip 形式并列显示多个待上传文件，
-        发送时再把所有附件一并提交给大模型。
-        """
+        """选择并附加一个或多个文件（仅文本与图片）。"""
         TEXT_EXTS = {".txt", ".md", ".json", ".py", ".csv", ".log"}
         IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"}
         paths, _ = QFileDialog.getOpenFileNames(
@@ -698,7 +679,7 @@ class MainWindow(QWidget):
         if not paths:
             return
 
-        # 已达数量上限则直接拦截，避免一次塞入海量文件撑爆 UI/上下文
+        # 超过数量上限则拦截
         if len(self._pending_attachments) >= _MAX_ATTACHMENTS:
             self.label_status.setText(f"最多附加 {_MAX_ATTACHMENTS} 个文件，已达上限")
             return
@@ -712,7 +693,7 @@ class MainWindow(QWidget):
             name = os.path.basename(path)
             ext = os.path.splitext(path)[1].lower()
             if ext in TEXT_EXTS:
-                # 超大文本文件直接拒绝：避免读取占用内存、拼入后塞爆 token
+                # 超大的文本文件直接拒绝
                 try:
                     size = os.path.getsize(path)
                 except OSError:
@@ -903,17 +884,7 @@ class MainWindow(QWidget):
             bar.setMaximumWidth(best)
 
     def _install_edge_filter(self) -> None:
-        """安装边缘缩放所需的鼠标事件过滤与光标处理。
-
-        1) 窗口外圈被 titleBar / leftSideBar / rightMainFrame 覆盖，
-           鼠标落在上面时事件不会发给 MainWindow。给它们各装一个
-           过滤器，把鼠标事件转交给 MainWindow 原生 mouse 方法统一处理。
-        2) 内部控件显式设为默认箭头光标：Qt 中未显式设光标的控件会
-           继承父级（这里是 MainWindow）的光标，若 MainWindow 在边缘
-           设置了缩放光标，鼠标移入内部时缩放光标就会残留。给所有
-           没有显式光标的内部控件统一设为默认箭头，即可避免残留，
-           同时保留控件自带的光标（如按钮手型、文本区 I 型）。
-        """
+        """为边缘缩放安装鼠标事件过滤与光标处理。"""
         edge_names = ("titleBar", "leftSideBar", "rightMainFrame")
         for name in edge_names:
             child = getattr(self, name)
@@ -1084,21 +1055,19 @@ class MainWindow(QWidget):
         # 首次发送时清空欢迎界面
         if self._current_idx is None or not self._sessions[self._current_idx]:
             self.chat_view.clear_all()
-        # 发送前先把当前供应商配置应用到运行时（重建客户端、用最新的 base_url/model/api_key），
-        # 避免用启动时的旧配置或残留 key 发请求（否则会得到 401）。
+
+        # 应用当前供应商配置，并组装发送载荷
         self._apply_current_provider()
-        # 组装发送载荷：图片以 image_url 内容块提交（模型真正“看图”），文本附件并入文本块；
-        # 同时生成纯文本版 full（会话记录/重放用）与气泡精简版 display。
         result = self._build_user_payload(text)
         if result is None:
-            # 当前模型不支持视觉但附加了图片：阻止发送，提示用户切换支持视觉的模型。
-            # 不清空附件（用户切换模型后可重发），并恢复问题文本到输入框。
+            # 模型不支持视觉：保留附件并恢复问题文本
             self.edit_input.setPlainText(text)
             self.edit_input.setFocus()
             self.label_status.setText(
                 "当前模型不支持看图，请切换到支持视觉的模型（如 gpt-4o / doubao）后重试"
             )
             return
+
         payload, full, display = result
         if self._pending_attachments:
             self._clear_attachment()
@@ -1107,17 +1076,9 @@ class MainWindow(QWidget):
         self._run_worker(payload)
 
     def _build_user_payload(self, text: str) -> tuple | None:
-        """把用户问题与待上传附件拼成发送载荷。
+        """把用户问题与附件拼成发送载荷，返回 (payload, full, display)。
 
-        返回 (payload, full, display)：
-          - payload: 传给模型的 user content。含图片时是 OpenAI 内容块数组
-            （文本块 + image_url 块，模型可真正“看图”）；否则退化为纯文本。
-          - full:    纯文本版完整消息（含附件标识/内容），用于会话记录与历史重放。
-          - display: 气泡显示的精简文本（只列附件名）。
-
-        若附带了图片但**当前模型不支持视觉**，返回 None 表示“阻止发送”，
-        由 _on_send 提示用户切换支持视觉的模型，避免向纯文本模型发送
-        image_url 内容块导致 400 或模型乱答。
+        模型不支持视觉时返回 None 以阻止发送。
         """
         display = text
         full = text
@@ -1127,6 +1088,7 @@ class MainWindow(QWidget):
             full_parts: list[str] = []
             display_parts: list[str] = []
             has_image = False
+
             for att in self._pending_attachments:
                 if att["kind"] == "image":
                     has_image = True
@@ -1145,22 +1107,21 @@ class MainWindow(QWidget):
                 display_parts.append(
                     f"📎 {'图片' if att['kind'] == 'image' else '附件'}：{att['name']}"
                 )
-            # full / display 无论有无图片都包含附件信息（会话记录与气泡展示用）
+
+            # 纯文本版与气泡显示版都包含附件信息
             if full_parts:
                 full = "\n\n".join(full_parts) + ("\n\n" + text if text else "")
             if display_parts:
                 display = "\n".join(display_parts) + ("\n" + text if text else "")
+
             if has_image:
-                # 当前模型不支持视觉：阻止发送，提示用户切换支持视觉的模型。
-                # 此时不放行图片，也不降级为路径文本（方案 C：直接阻止）。
                 if not config.llm.supports_vision():
                     return None
-                # 用户问题作为文本块拼到内容块数组头部（保证问题紧跟图片、语义完整）
+                # 用户问题作为文本块拼到内容块数组头部
                 if text:
                     content_blocks.insert(0, {"type": "text", "text": text})
                 payload = content_blocks
             else:
-                # 无图片时 payload 保持纯文本，并纳入文本附件（等价于旧行为：完整消息）
                 payload = full
         return payload, full, display
 
@@ -1168,9 +1129,8 @@ class MainWindow(QWidget):
         self.agent.reset()
         self.chat_view.clear_all()
         self.chat_view.show_welcome()
-        # 清空未发送的待上传附件状态（隐藏附件卡片）
         self._clear_attachment()
-        # 同步清空当前会话的记录，保持列表与对话区一致
+        # 同步清空当前会话记录
         if self._current_idx is not None:
             self._sessions[self._current_idx].clear()
             self._session_titles[self._current_idx] = "新对话"
@@ -1209,14 +1169,9 @@ class MainWindow(QWidget):
         )
 
     def _save_all_sessions(self) -> None:
-        """退出兜底：把全部会话写入磁盘；空会话不落盘并清理磁盘残留。
-
-        空会话（从未发过消息）不应占一条历史，也不该在 sessions/ 留下垃圾 JSON。
-        这里跳过它们：既不写新文件，也顺手删除可能残留的空会话文件。
-        """
+        """退出兜底：把全部会话写入磁盘，空会话不落盘。"""
         for i, sid in enumerate(self._session_ids):
             if not self._sessions[i]:
-                # 空会话：跳过落盘，并删除（如有）残留的空会话文件
                 session_store.delete_session(sid)
                 continue
             session_store.save_session(sid, self._session_titles[i], self._sessions[i])
@@ -1235,7 +1190,7 @@ class MainWindow(QWidget):
         self._ensure_session()
         self._sessions[self._current_idx].append((role, text))
         if role == "user" and self._session_titles[self._current_idx] in ("", "新对话"):
-            # 取首条用户消息的前 14 字符作为会话标题，去掉换行和多余空白
+            # 用首条用户消息的前 14 字符作标题
             clean = text.strip().replace("\n", " ").replace("\r", "")
             title = clean if len(clean) <= 14 else clean[:14] + "…"
             self._session_titles[self._current_idx] = title
@@ -1262,7 +1217,6 @@ class MainWindow(QWidget):
     def _on_new(self) -> None:
         """新建对话：清空对话区、建立新会话（标题"新对话"）、重置 Agent 上下文。"""
         self.agent.reset()
-        # 清空未发送的待上传附件状态（隐藏附件卡片）
         self._clear_attachment()
         self._sessions.append([])
         self._session_titles.append("新对话")
@@ -1280,8 +1234,7 @@ class MainWindow(QWidget):
         if row < 0 or row >= len(self._sessions):
             return
         self._current_idx = row
-        # 同步 Agent 的 LLM 上下文到该会话历史；未配置 API Key 时仅告警，
-        # 不阻断历史查看（发消息时会重新校验并重建客户端）。
+        # 同步 Agent 上下文到该会话历史（未配置 Key 时仅告警）
         try:
             self.agent.load_history(self._sessions[row])
         except ValueError as e:
@@ -1331,7 +1284,7 @@ class MainWindow(QWidget):
         if row < 0 or row >= len(self._sessions):
             return
         old = self._session_titles[row]
-        # 实例化 QInputDialog 以套用主题样式（静态 getText 无法设置样式）
+        # 实例化 QInputDialog 以套用主题样式
         dialog = QInputDialog(self)
         dialog.setFont(self.font())
         dialog.setStyleSheet(self._dialog_qss())
@@ -1352,14 +1305,11 @@ class MainWindow(QWidget):
             self.label_status.setText(new)
 
     def _delete_session(self, row: int) -> None:
-        """删除会话：确认后同步移除内存 + 列表 + 磁盘。
-
-        删除当前会话后回到主欢迎界面（其余会话保留在列表）。
-        """
+        """删除会话：确认后同步移除内存、列表与磁盘。"""
         if row < 0 or row >= len(self._sessions):
             return
         title = self._session_titles[row]
-        # 实例化 QMessageBox 以套用主题样式（静态 question 无法设置样式）
+        # 实例化 QMessageBox 以套用主题样式
         box = QMessageBox(self)
         box.setFont(self.font())
         box.setStyleSheet(self._dialog_qss())
@@ -1549,13 +1499,14 @@ class MainWindow(QWidget):
             QTimer.singleShot(2000, lambda: self.label_status.setText("就绪"))
 
     def _on_redo_message(self, msg_idx: int) -> None:
-        """重做：先移除当前这一条问答（用户消息 + 对应助手回复），再重新生成。"""
+        """重做：移除当前这条问答，再重新生成。"""
         if self._current_idx is None or (self._worker and self._worker.isRunning()):
             return
         session = self._sessions[self._current_idx]
         if msg_idx < 0 or msg_idx >= len(session):
             return
-        # 定位触发重做的助手消息，向前找到对应的用户消息
+
+        # 定位触发重做的助手消息对应的用户消息
         user_pos = None
         for i in range(msg_idx, -1, -1):
             if session[i][0] == "user":
@@ -1564,21 +1515,22 @@ class MainWindow(QWidget):
         if user_pos is None:
             return
         user_text = session[user_pos][1]
-        # 删除该问答：从用户消息到助手回复结束（含中间的 tool / error）
+
+        # 删除从用户消息到助手回复结束这一整段
         end = msg_idx
         while end + 1 < len(session) and session[end + 1][0] in ("assistant", "tool", "error"):
             end += 1
         del session[user_pos : end + 1]
-        # 同步 Agent 的 LLM 上下文到删除后的会话；未配置 API Key 时仅告警，
-        # 不阻断删除/重渲染（发消息时会重新校验并重建客户端）。
+
+        # 同步 Agent 上下文并重新渲染（未配置 Key 时仅告警）
         try:
             self.agent.load_history(session)
         except ValueError as e:
             logger.warning("同步历史上下文失败（可能未配置 API Key）: %s", e)
-        # 重新渲染会话（若已空则显示欢迎界面）
         self._render_session(self._current_idx)
         if not session:
             self.chat_view.show_welcome()
+
         # 重新发送该用户消息
         self._apply_current_provider()
         self.add_user_message(user_text)
