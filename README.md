@@ -1,10 +1,11 @@
 # 🐦‍⬛ Raven
 
-> **会使用工具的智慧渡鸦，栖息在你的桌面上。**
+> **一只栖息在你桌面上的智慧渡鸦，为你接入多种大模型。**
+>
+> ⚠️ **当前状态**：Raven 现已实现为功能完整的**多模型 LLM 对话助手**（流式输出、多会话、多主题、视觉输入）。其核心引擎采用 **DSH 插件化架构**，已具备可插拔的 Agent 主循环与工具调用**框架**；**具体内置工具尚在规划中**（见 [开发路线](#-开发路线)）。
 
-Raven 是一个基于 **PySide6** 的桌面 AI 智能助手（Agent）。如同渡鸦——自然界最擅长使用工具的智慧生物——Raven 能理解你的意图、调用工具、亲手帮你完成任务，让 AI 智能真正落地到你的日常工作流。
+Raven 是一个基于 **PySide6** 的桌面 AI 对话助手。核心引擎采用 **DSH（DeepSeek-Harness）插件化架构**：`micro_kernel` 微内核 + `harness` 核心引擎（LLM 适配、工具注册、可插拔 Agent 主循环），一切皆插件、事件总线贯穿始终。目前工具调用管道（Tool Calling 闭环）已就绪，但**尚未内置任何实际工具**，因此现阶段定位为**强大的多模型 LLM 对话助手**，并为后续演进出"会用工具的 Agent"铺好了架构基础。
 
-核心引擎采用 **DSH（DeepSeek-Harness）插件化架构**：`Model + Harness = Agent`，一切皆插件、Agent 主循环可插拔、事件总线贯穿始终。它不只是"聊天"，而是**会用工具的智能体**。
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![PySide6](https://img.shields.io/badge/GUI-PySide6-green.svg)
@@ -15,10 +16,12 @@ Raven 是一个基于 **PySide6** 的桌面 AI 智能助手（Agent）。如同�
 
 - 🖥️ **无边框深色 GUI**：左侧导航栏 + 右侧聊天区 + 底部输入栏，自定义标题栏，可拖拽缩放
 - 💬 **聊天式气泡界面**：用户/助手/工具/错误四种独立气泡，**Markdown 渲染 + 代码高亮**
-- 🤖 **Agent 核心**：对话管理、工具调用（Tool Calling）、**可插拔主循环（ReAct）**
+- 🤖 **Agent 核心框架**：对话管理、工具调用（Tool Calling）管道、**可插拔主循环（ReAct）**（工具功能框架就绪，内置工具规划中）
+
 - 🔌 **多模型供应商**：OpenAI 兼容 API（火山方舟 Ark、DeepSeek、OpenAI、本地 Ollama 等），界面可切换
 - 🧩 **DSH 插件化架构**：`micro_kernel` 微内核 + `harness` 核心引擎（纯逻辑、零 UI 依赖）
-- 🛠️ **工具注册表** + 文件读写内置工具（含**路径沙箱**）
+- 🛠️ **工具注册表框架**：`ToolRegistry` / `Tool` 定义与执行机制已就绪（`app/agent/tools.py`），内置工具待接入
+
 - 🧠 **thinking 剥离**：模型思考内容不送入工具调用上下文
 - 💾 **会话持久化**：多会话管理，历史自动保存、退出兜底存储
 - 🎨 **多主题换肤**：深色 / 白色 / 青蓝黄 / 粉色，运行时一键切换
@@ -47,8 +50,8 @@ raven/
 │   ├── tool_registry.py        #   工具注册插件
 │   └── agent_loop.py           #   【核心】可插拔的 Agent 主循环（ReAct）
 │
-├── tools/                      # 内置工具实现（文件读写，含路径沙箱）
-│   └── builtins.py
+├── tools/                      # 内置工具实现（当前为空，待实现具体工具）
+│   └── builtins.py             #   返回内置工具列表（现返回空列表）
 │
 ├── app/                        # GUI 界面层
 │   ├── main_window.py          #   主窗口（无边框、主题、Agent 线程、会话管理）
@@ -106,7 +109,8 @@ raven/
 - `agent.tool_call` — 工具调用（名称、参数）
 - `agent.message` — 最终回答
 
-> 核心引擎装配即 `Model + Harness = Agent`：LLM 适配 + 工具注册 + 主循环三者装配成可用 Agent，见 `cli_main.py`。
+> 核心引擎遵循 **`Model + Harness = Agent`** 装配理念：LLM 适配 + 工具注册 + 主循环三者组合成 Agent（见 `cli_main.py`）。当前工具注册为空，故表现为对话助手；接入实际工具后即升级为会用工具的 Agent。
+
 
 ## 🎨 样式设计（QSS）
 
@@ -239,7 +243,7 @@ conda activate Yolo_pyside
 python main.py
 ```
 
-**CLI 模式**（DSH 核心引擎验证，命令行对话 + 工具调用）：
+**CLI 模式**（DSH 核心引擎验证，命令行对话 + 工具调用管道）：
 ```bash
 python cli_main.py
 ```
@@ -247,10 +251,13 @@ python cli_main.py
 
 | 阶段 | 内容 | 状态 |
 |------|------|------|
-| 阶段一 | DSH 核心引擎（micro_kernel + harness 插件 + CLI 验证） | ✅ 完成 |
-| 阶段二 | Skill 管理、会话持久化（JSONL trajectory）、事件日志 | ⬜ 待开发 |
-| 阶段三 | UI 桥接（DSH 事件 ↔ Qt 信号）、权限门控、沙箱 | ⬜ 待开发 |
-| 阶段四 | MCP 接入、多 Loop 替换、多会话 | ⬜ 待开发 |
+| 已实现 | 多模型 LLM 对话助手：流式输出、会话持久化、多主题、视觉输入 | ✅ 完成 |
+| 已实现 | DSH 核心引擎框架：micro_kernel + harness 插件 + CLI 验证 | ✅ 完成 |
+| 待开发 | **接入实际内置工具**（如时间 / 计算器 / 文件读写含路径沙箱），激活 ReAct 工具闭环 | ⬜ 规划中 |
+| 待开发 | Skill 管理、会话 JSONL trajectory、事件日志 | ⬜ 待开发 |
+| 待开发 | UI 桥接增强、权限门控、沙箱 | ⬜ 待开发 |
+| 待开发 | MCP 接入、多 Loop 替换、多会话 | ⬜ 待开发 |
+
 
 > 详细架构设计与演进路线见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)；各阶段开发过程记录见 [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md)。
 
