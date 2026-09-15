@@ -262,5 +262,5 @@ python cli_main.py
 
 ---
 
-**Made with ❤️ by [Kevin展](https://github.com/spreading123)** — 让 AI 智能如渡鸦般，栖于你的桌面。
+**Made with ❤️ by [Spreading123](https://github.com/Spreading123)** — 让 AI 智能如渡鸦般，栖于你的桌面。
 
