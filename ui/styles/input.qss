@@ -1,0 +1,146 @@
+/* input.qss —— 底部输入区样式：配置栏、输入框、操作按钮 */
+
+#inputFrame {
+    background-color: $bg_input;
+    border: 1px solid $border;
+    border-radius: 10px;
+}
+
+/* 输入框：透明底 + 圆角 + 聚焦高亮边框 */
+#edit_input {
+    background: transparent;
+    border: 1px solid $border;
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: $text;
+    selection-background-color: $bg_hover2;
+}
+#edit_input:focus {
+    border: 1px solid $accent;
+}
+
+/* 配置栏文字标签（稍放大一号） */
+#label_provider,
+#label_model,
+#label_api_key {
+    color: $text_dim;
+    font-size: 10pt;
+    font-weight: bold;
+}
+
+/* 供应商 / 模型下拉框 */
+#combo_provider,
+#combo_model {
+    background-color: $bg_title;
+    color: $text;
+    border: 1px solid $border;
+    border-radius: 6px;
+    padding: 3px 6px;
+}
+#combo_provider:hover,
+#combo_model:hover {
+    border: 1px solid $accent;
+}
+#combo_provider:focus,
+#combo_model:focus {
+    border: 1px solid $accent;
+}
+#combo_provider::drop-down,
+#combo_model::drop-down {
+    border: none;
+    width: 18px;
+}
+#combo_provider QAbstractItemView,
+#combo_model QAbstractItemView {
+    background-color: $bg_title;
+    color: $text;
+    selection-background-color: $sel_bg;
+    selection-color: $sel_fg;
+    outline: none;
+}
+#combo_provider QAbstractItemView::item:hover,
+#combo_model QAbstractItemView::item:hover {
+    background: $sel_bg;
+    color: $sel_fg;
+}
+#combo_provider QAbstractItemView::item:selected,
+#combo_model QAbstractItemView::item:selected {
+    background: $sel_bg;
+    color: $sel_fg;
+}
+
+/* Base URL 输入框（OpenAI 兼容端点，配色与 API Key 输入框一致） */
+#edit_base_url {
+    background-color: $bg_title;
+    color: $text;
+    border: 1px solid $border;
+    border-radius: 6px;
+    padding: 3px 8px;
+}
+#edit_base_url:focus {
+    border: 1px solid $accent;
+}
+
+/* API Key 输入框 */
+#edit_api_key {
+    background-color: $bg_title;
+    color: $text;
+    border: 1px solid $border;
+    border-radius: 6px;
+    padding: 3px 8px;
+}
+#edit_api_key:focus {
+    border: 1px solid $accent;
+}
+#edit_api_key[saved="true"] {
+    background-color: $bg_side;
+    color: $text_muted;
+    border: 1px dashed $border;
+}
+
+/* 保存按钮 */
+#btn_save_key {
+    background: $accent;
+    color: $bg_title;
+    font-weight: bold;
+}
+#btn_save_key:hover {
+    background: $accent_hover;
+}
+#btn_save_key[saved="true"] {
+    background: $btn;
+    color: $text_muted;
+}
+
+/* 文件上传按钮 */
+#btn_upload {
+    background: $btn;
+    color: $text;
+}
+#btn_upload:hover {
+    background: $btn_hover;
+    border: 1px solid $accent;
+}
+
+QPushButton {
+    background: $btn;
+    color: $text;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-family: "Microsoft YaHei";
+}
+QPushButton:hover {
+    background: $btn_hover;
+}
+
+#btn_send {
+    background: $accent;
+    color: $bg_title;
+    font-weight: bold;
+}
+#btn_send:hover {
+    background: $accent_hover;
+}
+
+

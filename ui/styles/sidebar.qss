@@ -1,0 +1,157 @@
+/* sidebar.qss —— 左侧导航栏：品牌、导航、新建对话、历史对话、用户区 */
+
+#leftSideBar {
+    background-color: $bg_side;
+    border: none;
+    border-bottom-left-radius: 10px;
+    font-size: 10pt;
+}
+
+/* 品牌区 */
+#label_brand {
+    padding: 4px 0 10px 0;
+    border-bottom: 1px solid $border;
+    margin-bottom: 8px;
+}
+
+/* 导航列表（技能/连接器/项目/计划任务） */
+#list_nav {
+    background-color: transparent;
+    border: none;
+    color: $text_dim;
+    outline: none;
+    font-size: 10pt;
+}
+#list_nav QScrollBar:vertical {
+    width: 0px;
+    background: transparent;
+}
+#list_nav::item {
+    padding: 5px 12px;
+    min-height: 22px;
+    border-radius: 8px;
+    margin: 1px 4px;
+    border-left: 2px solid transparent;
+}
+#list_nav::item:selected {
+    background: $bg_hover;
+    color: $accent;
+    border-left: 2px solid $accent;
+}
+#list_nav::item:hover:!selected {
+    background: $bg_hover;
+    color: $text;
+}
+
+/* 新建对话按钮：胶囊样式 */
+#btn_new {
+    background: transparent;
+    color: $text;
+    border: 1px solid $border;
+    border-radius: 18px;
+    padding: 7px 12px;
+    min-height: 32px;
+    font-size: 10pt;
+    text-align: center;
+    margin: 8px 4px 4px 4px;
+}
+#btn_new:hover {
+    background: $bg_hover;
+    border-color: $accent;
+    color: $accent;
+}
+#btn_new:pressed {
+    background: $bg_hover2;
+}
+
+/* 历史对话标签 */
+#label_history {
+    color: $text_muted;
+    font-size: 8.5pt;
+    font-weight: 600;
+    padding: 12px 10px 4px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 历史对话列表：隐藏滚动条，自定义 item widget 样式 */
+#list_history {
+    background-color: transparent;
+    border: none;
+    color: $text_dim;
+    outline: none;
+    font-size: 9.5pt;
+}
+#list_history QScrollBar:vertical {
+    width: 0px;
+    background: transparent;
+}
+#list_history QScrollBar::handle:vertical {
+    background: transparent;
+}
+#list_history::item {
+    padding: 0px;
+    margin: 1px 4px;
+    border-radius: 8px;
+    background: transparent;
+}
+#list_history::item:selected {
+    background: transparent;
+}
+/* 自定义历史项 widget（彩色图标 + 标题 + hover 更多按钮） */
+#historyItemWidget {
+    background: transparent;
+    border-radius: 8px;
+}
+#historyItemWidget:hover {
+    background: $bg_hover;
+}
+#historyItemWidget[selected="true"] {
+    background: $bg_hover;
+}
+#historyItemTitle {
+    color: $text_dim;
+    font-size: 10pt;
+    background: transparent;
+}
+#historyItemWidget[selected="true"] #historyItemTitle {
+    color: $text;
+    font-weight: 500;
+}
+#historyItemWidget:hover #historyItemTitle {
+    color: $text;
+}
+/* 更多（⋯）按钮：颜色/背景跟随主题变量（在 Python 里不写死颜色） */
+#historyItemWidget QPushButton {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: $text_muted;
+}
+#historyItemWidget QPushButton:hover {
+    background: $bg_hover2;
+    color: $text;
+}
+#historyItemWidget QPushButton:pressed {
+    background: $bg_hover2;
+    color: $accent;
+}
+
+/* 用户区 */
+#user_frame {
+    background: $bg_input;
+    border-radius: 8px;
+    border: 1px solid $border;
+    margin: 6px 4px 0 4px;
+    padding: 2px;
+}
+#user_frame:hover {
+    border-color: $bg_hover2;
+}
+#label_user {
+    color: $text;
+    font-size: 10pt;
+    font-weight: 500;
+}

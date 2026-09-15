@@ -1,0 +1,31 @@
+/* chat.qss —— 聊天区样式：消息区、状态栏 */
+
+#rightMainFrame {
+    background-color: $bg;
+    border: none;
+    border-bottom-right-radius: 10px;
+}
+
+#chatContentView {
+    background: transparent;
+    border: none;
+    color: $text;
+    font-size: 9.5pt;
+}
+
+#user_frame {
+    background: $bg_input;
+    border-radius: 8px;
+}
+
+#label_tools {
+    color: $text_dim;
+}
+
+#label_tool_names {
+    color: $accent;
+}
+
+#label_status {
+    color: $text_dim;
+}

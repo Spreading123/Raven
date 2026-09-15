@@ -1,0 +1,38 @@
+/* titlebar.qss —— 标题栏样式 */
+
+#titleBar {
+    background-color: $bg_title;
+    border-bottom: 1px solid $bg;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+#app_title {
+    font-size: 12pt;
+    font-weight: bold;
+    color: $text;
+}
+
+#btn_toggle_sidebar {
+    background: transparent;
+    color: $icon;
+    font-size: 14pt;
+    border: none;
+    padding: 0 10px;
+}
+#btn_toggle_sidebar:hover {
+    color: $text;
+}
+
+#btn_theme {
+    background: transparent;
+    color: $icon;
+    font-size: 12pt;
+    border: none;
+    padding: 0 8px;
+}
+#btn_theme:hover {
+    background: $bg_hover;
+    border-radius: 6px;
+}
+
